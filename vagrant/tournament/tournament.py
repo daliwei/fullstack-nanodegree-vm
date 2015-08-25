@@ -14,14 +14,29 @@ def connect():
 def deleteMatches():
     """Remove all the match records from the database."""
 
+    db = connect()
+    c = db.cursor()
+    c.execute("DELETE FROM games")
+    db.commit()
+    db.close()
 
 def deletePlayers():
     """Remove all the player records from the database."""
-
+    db = connect()
+    c = db.cursor()
+    c.execute("DELETE FROM players")
+    db.commit()
+    db.close() 
 
 def countPlayers():
     """Returns the number of players currently registered."""
-
+    db = connect()
+    c = db.cursor()
+    c.execute("SELECT COUNT(*) AS num FROM players")
+    rows = c.fetchall()
+    count = rows[0][0]
+    db.close()
+    return count
 
 def registerPlayer(name):
     """Adds a player to the tournament database.
@@ -32,7 +47,11 @@ def registerPlayer(name):
     Args:
       name: the player's full name (need not be unique).
     """
-
+    db = connect()
+    c = db.cursor()
+    c.execute("INSERT INTO players (name) VALUES (%s)", (name,))
+    db.commit()
+    db.close()
 
 def playerStandings():
     """Returns a list of the players and their win records, sorted by wins.
@@ -47,7 +66,16 @@ def playerStandings():
         wins: the number of matches the player has won
         matches: the number of matches the player has played
     """
-
+    
+    db = connect()
+    c = db.cursor()
+    c.execute('''SELECT * FROM standings''')
+    rows = c.fetchall()
+    db.close()
+    res = []
+    for row in rows:
+        res.append([row[0],row[1], row[2], row[3]])
+    return res
 
 def reportMatch(winner, loser):
     """Records the outcome of a single match between two players.
@@ -56,8 +84,12 @@ def reportMatch(winner, loser):
       winner:  the id number of the player who won
       loser:  the id number of the player who lost
     """
- 
- 
+    db = connect()
+    c = db.cursor()
+    c.execute('''INSERT INTO games (winner, loser) VALUES (%s,%s)''', (winner, loser,))
+    db.commit()
+    db.close()
+      
 def swissPairings():
     """Returns a list of pairs of players for the next round of a match.
   
@@ -73,5 +105,24 @@ def swissPairings():
         id2: the second player's unique id
         name2: the second player's name
     """
-
+    db = connect()
+    c = db.cursor()
+    # select players from standings starting from the player with the highest number of wining matches
+    c.execute('''SELECT id, name, wins, matches FROM standings''')
+    rows = c.fetchall()
+    selected_players = set()
+    res=[]
+    for row in rows:
+        if row[0] not in selected_players not in selected_players:
+            # select the player's opponent with the lowest difference regarding the number of wining matches
+            c.execute('''SELECT id, name, @(wins-%s) as diff FROM standings WHERE matches=%s AND id!=%s''', (row[2], row[3], row[0],))
+            temp_rows = c.fetchall()
+            for temp_row in temp_rows:
+                if temp_row[0] not in selected_players:
+                    selected_players.add(temp_row[0])
+                    selected_players.add(row[0])
+                    break
+            res.append([row[0], row[1], temp_row[0], temp_row[1]])
+    return res
+    
 
